@@ -1,0 +1,169 @@
+# Build the Track 1 agent image on GitHub's runners and push it to GHCR - no local Docker needed.
+#
+# Run it from the repository's Actions tab -> "build-and-push" -> Run workflow -> tag (v1, v2, ...).
+# It builds the organizers' shared base (finance-bench-sandbox), builds this image on top of it,
+# runs the verb smoke test, a platform-like run and the 86-unit conformance sweep, pushes the image,
+# and writes submission.json (without team_id) for packing.
+#   variant full -> ./Dockerfile      -> ghcr.io/<owner>/agenthon-t1:<tag>      (agent + memory library)
+#   variant lite -> ./Dockerfile.lite -> ghcr.io/<owner>/agenthon-t1-dev:<tag>  (agent code only)
+# The two variants live in separate packages, so making one public never exposes the other.
+# "package" overrides the package name (e.g. an inconspicuous name that a search for "agenthon" won't find).
+#
+# After the run: make that package PUBLIC (profile -> Packages -> <package> -> Package settings ->
+# Change visibility -> Public; this cannot be undone), unless this repository itself is public, then
+# run the "pull-check" workflow, then pack locally with your Team Key.
+name: build-and-push
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "image tag (use a new one for every submission: v1, v2, ...)"
+        required: true
+        default: "v1"
+      sweep:
+        description: "run the offline 86-unit conformance sweep before pushing"
+        type: boolean
+        default: true
+      variant:
+        description: "full = agent + memory library (package agenthon-t1); lite = agent code only (package agenthon-t1-dev)"
+        type: choice
+        options: [full, lite]
+        default: full
+      package:
+        description: "optional package name instead of the variant default (lowercase letters, digits, . _ -)"
+        default: ""
+      phase:
+        description: "descriptor phase written to submission.json: final for the one Final upload, dev for Development"
+        type: choice
+        options: [final, dev]
+        default: final
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      TAG: ${{ inputs.tag }}
+      VARIANT: ${{ inputs.variant }}
+      PACKAGE_INPUT: ${{ inputs.package }}
+      PHASE: ${{ inputs.phase }}
+    outputs:
+      ref: ${{ steps.push.outputs.ref }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone the public kit (shared base image + practice units)
+        run: git clone --depth 1 https://github.com/Agenthon-2026/track1-coding-public.git /tmp/kit
+
+      - name: Build the shared sandbox base (finance-bench-sandbox:latest; compiles TA-Lib)
+        run: docker build --platform linux/amd64 -t finance-bench-sandbox:latest -f /tmp/kit/docker/sandbox.Dockerfile /tmp/kit
+
+      - name: Build the agent image
+        run: |
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          case "$VARIANT" in
+            lite) PACKAGE="agenthon-t1-dev"; DOCKERFILE="Dockerfile.lite" ;;
+            *)    PACKAGE="agenthon-t1";     DOCKERFILE="Dockerfile" ;;
+          esac
+          if [ -n "$PACKAGE_INPUT" ]; then
+            case "$PACKAGE_INPUT" in
+              *[!a-z0-9._-]*|[!a-z0-9]*) echo "invalid package name: $PACKAGE_INPUT"; exit 1 ;;
+            esac
+            PACKAGE="$PACKAGE_INPUT"
+          fi
+          IMAGE="ghcr.io/${OWNER}/${PACKAGE}"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+          echo "OWNER=$OWNER" >> "$GITHUB_ENV"
+          echo "PACKAGE=$PACKAGE" >> "$GITHUB_ENV"
+          echo "variant=$VARIANT dockerfile=$DOCKERFILE image=$IMAGE:$TAG"
+          # single-arch manifest, no attestation index; the source label links the package to this repo
+          docker build --platform linux/amd64 --provenance=false --sbom=false -f "$DOCKERFILE" \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            -t "$IMAGE:$TAG" . \
+          || docker build --platform linux/amd64 -f "$DOCKERFILE" \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            -t "$IMAGE:$TAG" .
+          if [ "$VARIANT" = "lite" ]; then
+            docker run --rm --entrypoint sh "$IMAGE:$TAG" -c 'test ! -e /agent/memory && ls -la /agent'
+          fi
+          docker image inspect "$IMAGE:$TAG" --format 'label={{index .Config.Labels "qfbench2.interface_version"}} entrypoint={{.Config.Entrypoint}} cmd={{.Config.Cmd}} arch={{.Architecture}}'
+
+      - name: Verb smoke test (must exit 0 and print the agent banner)
+        run: |
+          mkdir -p /tmp/smoke/unit /tmp/smoke/out && chmod 777 /tmp/smoke/out
+          printf '# Task: smoke\nWrite /app/output/results.json with {"ok": true}.\n' > /tmp/smoke/unit/instruction.md
+          docker run --rm --network=none \
+            -v /tmp/smoke/unit:/input:ro -v /tmp/smoke/out:/app/output -v /tmp/smoke/out:/output \
+            "$IMAGE:$TAG" solve --task-dir /input --out /app/output
+          ls -la /tmp/smoke/out
+
+      - name: Platform-like run (uid 65534, read-only root FS, 64 MiB noexec /tmp, pid/fd limits)
+        run: |
+          UNIT=/tmp/kit/units/t1-zero-coupon-bootstrapping; OUT=/tmp/plat; mkdir -p "$OUT"; chmod 777 "$OUT"
+          docker run --rm --read-only --user 65534:65534 --cap-drop=ALL --security-opt no-new-privileges \
+            --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
+            --pids-limit 256 --ulimit nofile=1024:1024 --ulimit nproc=256:256 \
+            --network=none -e QFBENCH_SEED=0 -e QFBENCH_NETWORK=none \
+            -v "$UNIT":/input:ro -v "$OUT":/output -v "$OUT":/app/output \
+            "$IMAGE:$TAG" solve --task-dir /input --out /app/output
+          ls -la "$OUT"
+
+      - name: Conformance sweep over the 86 public units (offline; needs 'crashed 0')
+        if: ${{ inputs.sweep }}
+        run: |
+          git clone --depth 1 https://github.com/Agenthon-2026/Agenthon2026-public.git /tmp/hub
+          bash /tmp/hub/starter-packs/track1/conformance.sh "$IMAGE:$TAG" /tmp/kit
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push and record the digest
+        id: push
+        run: |
+          docker push "$IMAGE:$TAG" | tee /tmp/push.log
+          DIGEST="$(grep -oE 'digest: sha256:[0-9a-f]{64}' /tmp/push.log | tail -1 | cut -d' ' -f2)"
+          if [ -z "$DIGEST" ]; then DIGEST="$(docker buildx imagetools inspect "$IMAGE:$TAG" --format '{{.Manifest.Digest}}')"; fi
+          echo "DIGEST=$DIGEST" >> "$GITHUB_ENV"
+          echo "ref=$IMAGE@$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "::notice title=image reference::$IMAGE@$DIGEST"
+          python3 scripts/make_descriptor.py --registry ghcr.io --repository "${OWNER}/${PACKAGE}" --digest "$DIGEST" --phase "$PHASE" --out submission.json
+          echo "----- submission.json -----"; cat submission.json
+          {
+            echo "## Image pushed"
+            echo
+            echo '```'
+            echo "$IMAGE@$DIGEST"
+            echo '```'
+            echo
+            echo "## submission.json  (phase $PHASE; team_id and descriptor_digest are added by the pack step)"
+            echo
+            echo '```json'
+            cat submission.json
+            echo '```'
+            echo
+            echo "**Next:** 1) make the package public (unless this repo is public), 2) run the pull-check workflow with the reference above, 3) pack locally: \`python scripts/pack_standalone.py --team-number <N> --phase $PHASE\` with this submission.json beside it, 4) upload submission.zip on CodaBench."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload submission.json as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: submission-json-${{ inputs.variant }}-${{ inputs.tag }}
+          path: submission.json
+
+  # The pushed reference as a job name, so it can be read from the Actions API (runs/<id>/jobs)
+  # without downloading logs or the artifact.
+  report:
+    needs: build
+    name: "pushed ${{ needs.build.outputs.ref }}"
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "${{ needs.build.outputs.ref }}"

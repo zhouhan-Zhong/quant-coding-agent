@@ -1,0 +1,13 @@
+[
+ "cds-hazard-bootstrap-cva",
+ "merton-structural-model",
+ "nelson-siegel-curve-fitting-and-bond-conventions",
+ "almgren-chriss-optimal-execution",
+ "microstructure-spread-impact-vpin",
+ "fx-triangular-arbitrage-and-hedging",
+ "stress-testing-and-scenario-pnl",
+ "walk-forward-and-parameter-robustness",
+ "earnings-call-and-10k-text-scoring",
+ "barrier-monte-carlo-discrete-monitoring",
+ "category-grader-invariants"
+]

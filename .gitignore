@@ -1,0 +1,9 @@
+# never commit competition secrets or packed submissions
+team-key.txt
+submission*.json
+submission*.zip
+# local evaluation outputs and caches
+results-*/
+__pycache__/
+*.pyc
+.pytest_cache/

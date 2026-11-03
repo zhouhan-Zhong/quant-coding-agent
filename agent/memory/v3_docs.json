@@ -1,0 +1,13 @@
+[
+ "curve-bootstrap-and-immunization-conventions",
+ "fft-and-characteristic-function-pricing",
+ "copula-fitting-and-sampling-conventions",
+ "exotic-option-invariants-and-numerical-pricing-checks",
+ "event-study-statistics-and-windows",
+ "data-cleaning-report-and-count-conventions",
+ "monte-carlo-reproducibility-and-tolerance",
+ "credit-portfolio-loss-conventions",
+ "fx-commodities-crypto-conventions",
+ "portfolio-construction-and-regime-scaling-conventions",
+ "text-filings-extraction-conventions"
+]

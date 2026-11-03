@@ -1,0 +1,83 @@
+# Anonymous pullability check from a GitHub runner (which can reach ghcr.io / Docker Hub):
+# does the registry serve this exact manifest digest to a client WITHOUT credentials?
+# 200 = pullable by the organizers' worker.  401/403/404 = NOT pullable -> make the package public.
+#
+# `reference` is either the digest reference  ghcr.io/<owner>/agenthon-t1@sha256:<64 hex>
+# or a tag such as                            ghcr.io/<owner>/agenthon-t1:v2
+# A tag is first resolved to its manifest digest with this repository's own token (that works while
+# the package is still private), then the digest is requested anonymously.  The resolved digest
+# reference and the HTTP code are also the NAME of the "result" job, so they can be read from the
+# Actions API (runs/<id>/jobs) without downloading logs or artifacts.
+name: pull-check
+
+on:
+  workflow_dispatch:
+    inputs:
+      reference:
+        description: "ghcr.io/<owner>/agenthon-t1@sha256:<64 hex>, or a tag such as ghcr.io/<owner>/agenthon-t1:v2"
+        required: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      ref: ${{ steps.resolve.outputs.ref }}
+      http: ${{ steps.anon.outputs.http }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve a tag to its manifest digest (digest references pass through)
+        id: resolve
+        env:
+          REF: ${{ inputs.reference }}
+          GH_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          REF="$(printf '%s' "$REF" | tr -d '[:space:]')"
+          case "$REF" in
+            *@sha256:*) RESOLVED="$REF" ;;
+            *)
+              REGISTRY="${REF%%/*}"; REST="${REF#*/}"
+              case "$REST" in *:*) REPO="${REST%:*}"; TAG="${REST##*:}" ;; *) REPO="$REST"; TAG="latest" ;; esac
+              ACCEPT='application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json'
+              TOKEN="$(curl -sf -u "$ACTOR:$GH_TOKEN" "https://$REGISTRY/token?scope=repository:$REPO:pull&service=$REGISTRY" | python3 -c 'import json,sys;print(json.load(sys.stdin).get("token",""))')"
+              echo "::add-mask::$TOKEN"
+              curl -sf -D /tmp/hdr.txt -o /tmp/manifest.bin -H "Authorization: Bearer $TOKEN" -H "Accept: $ACCEPT" \
+                "https://$REGISTRY/v2/$REPO/manifests/$TAG"
+              DIGEST="sha256:$(sha256sum /tmp/manifest.bin | cut -d' ' -f1)"
+              HDR="$(tr -d '\r' < /tmp/hdr.txt | awk 'tolower($1)=="docker-content-digest:"{print $2}')"
+              if [ -n "$HDR" ] && [ "$HDR" != "$DIGEST" ]; then echo "digest mismatch: header $HDR vs body $DIGEST"; exit 1; fi
+              RESOLVED="$REGISTRY/$REPO@$DIGEST" ;;
+          esac
+          echo "resolved: $RESOLVED"
+          echo "ref=$RESOLVED" >> "$GITHUB_OUTPUT"
+
+      - name: Anonymous manifest request
+        id: anon
+        run: |
+          set +e
+          bash scripts/pull_check.sh "${{ steps.resolve.outputs.ref }}" | tee /tmp/check.log
+          HTTP="$(grep -oE 'HTTP [0-9]{3}' /tmp/check.log | tail -1 | cut -d' ' -f2)"
+          echo "http=${HTTP:-000}" >> "$GITHUB_OUTPUT"
+          echo "::notice title=pull-check::${{ steps.resolve.outputs.ref }} -> HTTP ${HTTP:-000}"
+
+      - name: Summary
+        if: always()
+        run: |
+          { echo "## pull-check: ${{ steps.resolve.outputs.ref }}"; echo; echo '```'; cat /tmp/check.log 2>/dev/null; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+  result:
+    needs: check
+    if: always()
+    name: "${{ needs.check.outputs.ref }} -> HTTP ${{ needs.check.outputs.http }}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verdict (fails unless the digest is anonymously pullable)
+        run: |
+          echo "${{ needs.check.outputs.ref }} -> HTTP ${{ needs.check.outputs.http }}"
+          test "${{ needs.check.outputs.http }}" = "200"

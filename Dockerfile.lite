@@ -1,0 +1,46 @@
+# Agenthon 2026 - Track 1 coding agent image, LITE variant: the agent code without the memory library.
+#
+# Same agent and settings as ./Dockerfile, but agent/memory (verified solutions, playbooks, notes) is never
+# copied into any layer and AGENT_MEMORY=0, so a public package of this image exposes only the code.
+#   docker build --platform linux/amd64 -f Dockerfile.lite -t agenthon-t1-dev:v1 .
+FROM finance-bench-sandbox:latest
+
+# numba: the exemplar unit pins it and the graded stack uses 0.67.0; lxml/bs4: HTML/XML filings.
+RUN pip install --no-cache-dir numba==0.67.0 lxml==5.3.0 beautifulsoup4==4.12.3
+
+# The platform runs the container as uid 65534 with a read-only root filesystem and a 64 MiB
+# noexec tmpfs at /tmp.  Everything that wants a writable home/cache is pointed at /tmp.
+ENV HOME=/tmp \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    MPLBACKEND=Agg \
+    MPLCONFIGDIR=/tmp/mpl \
+    NUMBA_CACHE_DIR=/tmp/numba \
+    XDG_CACHE_HOME=/tmp/xdg \
+    HF_HUB_OFFLINE=1 \
+    TRANSFORMERS_OFFLINE=1 \
+    AGENT_WORKDIR=/tmp/agent_work \
+    AGENT_TIME_BUDGET=360 \
+    AGENT_MAX_REQUESTS=14 \
+    AGENT_PLAN=1 \
+    AGENT_REVIEW=1 \
+    AGENT_THINKING=0 \
+    AGENT_MEMORY=0 \
+    AGENT_SELFCHECK=1
+
+# Only the three agent modules and the licence: no agent/memory directory in any layer.
+COPY agent/agent.py agent/memory.py agent/selfcheck.py /agent/
+COPY LICENSE /agent/LICENSE
+RUN chmod -R a+rX /agent \
+    && python -m py_compile /agent/agent.py /agent/memory.py /agent/selfcheck.py \
+    && rm -rf /agent/__pycache__ \
+    && test ! -e /agent/memory \
+    && ! grep -rIlE "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}" /agent
+
+LABEL qfbench2.interface_version="2.0" \
+      org.opencontainers.image.title="agenthon-t1-agent-lite" \
+      org.opencontainers.image.licenses="Apache-2.0"
+
+# The verb arrives as the first argument after the image reference (SUBMISSION_CLI.md).
+ENTRYPOINT ["python", "/agent/agent.py"]
+CMD ["solve", "--task-dir", "/input", "--out", "/app/output"]

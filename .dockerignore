@@ -1,0 +1,6 @@
+# Only the agent code and the licence go into the image.
+*
+!agent/
+!agent/**
+!LICENSE
+agent/__pycache__/

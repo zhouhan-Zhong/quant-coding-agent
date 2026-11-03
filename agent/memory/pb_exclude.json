@@ -1,0 +1,195 @@
+{
+ "t1-13f-amendment-aware-crowding": [
+  "sec-filings-extraction",
+  "etf-holdings-and-flows"
+ ],
+ "t1-EXAMPLE-bs-greeks-pde": [
+  "finite-difference-pde"
+ ],
+ "t1-american-option-fd-new": [
+  "finite-difference-pde",
+  "american-options"
+ ],
+ "t1-asian-option-levy-curran": [
+  "lookback-asian-exotics"
+ ],
+ "t1-barone-adesi-whaley": [
+  "american-options"
+ ],
+ "t1-binance-btc-participation-tca": [
+  "execution-and-tca"
+ ],
+ "t1-bl-regime-hmm": [
+  "regime-models-and-black-litterman",
+  "params-verifier-family"
+ ],
+ "t1-bollinger-backtest-aapl": [
+  "cross-venue-arbitrage"
+ ],
+ "t1-bs-greeks-pde": [
+  "finite-difference-pde"
+ ],
+ "t1-cir-bond-pricing": [
+  "short-rate-models",
+  "optimization-and-root-finding"
+ ],
+ "t1-cliquet-ratchet-pricing": [
+  "cliquet-forward-start-variance-swaps"
+ ],
+ "t1-cme-hdd-option-pricing": [
+  "weather-derivatives"
+ ],
+ "t1-compound-option-geske": [
+  "compound-chooser-spread-options"
+ ],
+ "t1-copula-equity-fitting": [
+  "copulas-and-dependence"
+ ],
+ "t1-copula-sampling-rank-correlation": [
+  "copulas-and-dependence"
+ ],
+ "t1-credit-migration-matrix": [
+  "credit-risk-portfolio"
+ ],
+ "t1-credit-portfolio-var-cvar": [
+  "credit-risk-portfolio",
+  "copulas-and-dependence"
+ ],
+ "t1-creditmetrics-portfolio-var": [
+  "credit-risk-portfolio"
+ ],
+ "t1-crypto-funding-rate-basis-carry": [
+  "fx-and-carry-conventions"
+ ],
+ "t1-delta-hedging-pnl-simulation": [
+  "execution-and-tca"
+ ],
+ "t1-dupire-local-vol": [
+  "local-vol-dupire",
+  "implied-vol-solvers"
+ ],
+ "t1-etf-overlap-redemption-pressure": [
+  "etf-holdings-and-flows"
+ ],
+ "t1-evt-pot-var": [
+  "evt-and-tail-index"
+ ],
+ "t1-ewma-portfolio-risk-decomposition": [
+  "template-debug-family",
+  "portfolio-risk-decomposition",
+  "grader-taste"
+ ],
+ "t1-fama-french-factor-model-new": [
+  "latent-factor-models"
+ ],
+ "t1-fft-compound-poisson": [
+  "fft-and-characteristic-functions"
+ ],
+ "t1-first-passage-time": [
+  "lookback-asian-exotics"
+ ],
+ "t1-fomc-tone-event-study": [
+  "text-and-filings-parsing"
+ ],
+ "t1-form4-cross-sectional-sale-pressure": [
+  "sec-filings-extraction",
+  "etf-holdings-and-flows"
+ ],
+ "t1-fx-carry-forward-hedge": [
+  "fx-and-carry-conventions"
+ ],
+ "t1-fx-forward-cross-rate": [
+  "fx-and-carry-conventions",
+  "cross-currency-basis-swaps"
+ ],
+ "t1-geometric-mean-reverting-jd": [
+  "jump-and-stochastic-vol-calibration"
+ ],
+ "t1-historical-var-data-prep": [
+  "data-loading-quirks"
+ ],
+ "t1-hull-white-swaption": [
+  "short-rate-models"
+ ],
+ "t1-implied-vol-approximations": [
+  "implied-vol-solvers"
+ ],
+ "t1-interest-rate-cap-floor": [
+  "short-rate-models"
+ ],
+ "t1-intraday-volume-fitting-and-execution-scheduling": [
+  "execution-and-tca"
+ ],
+ "t1-ipca-latent-factors": [
+  "latent-factor-models"
+ ],
+ "t1-kelly-var-sizing": [
+  "params-verifier-family",
+  "portfolio-risk-decomposition"
+ ],
+ "t1-localvol-barrier": [
+  "local-vol-dupire",
+  "option-quote-auditing"
+ ],
+ "t1-lookback-options": [
+  "lookback-asian-exotics"
+ ],
+ "t1-merton-jump-diffusion": [
+  "jump-and-stochastic-vol-calibration"
+ ],
+ "t1-mtm-xccy-basis-desk": [
+  "cross-currency-basis-swaps"
+ ],
+ "t1-ohlc-realized-vol-estimators": [
+  "realized-volatility-estimators"
+ ],
+ "t1-option-put-call-parity-forward-audit": [
+  "option-quote-auditing"
+ ],
+ "t1-pca-factor-portfolio": [
+  "latent-factor-models"
+ ],
+ "t1-prediction-markets-cross-venue-dislocation": [
+  "cross-venue-arbitrage"
+ ],
+ "t1-realized-vol-estimators": [
+  "realized-volatility-estimators"
+ ],
+ "t1-regime-riskparity-cvar": [
+  "regime-models-and-black-litterman",
+  "params-verifier-family",
+  "portfolio-risk-decomposition"
+ ],
+ "t1-sec-10k-report-long": [
+  "sec-filings-extraction",
+  "text-and-filings-parsing"
+ ],
+ "t1-sec-8k-event-alpha": [
+  "text-and-filings-parsing"
+ ],
+ "t1-smith-tail-index": [
+  "evt-and-tail-index"
+ ],
+ "t1-spread-option-kirk-margrabe": [
+  "compound-chooser-spread-options"
+ ],
+ "t1-stochvol-implied-surface-new": [
+  "local-vol-dupire",
+  "implied-vol-solvers",
+  "jump-and-stochastic-vol-calibration"
+ ],
+ "t1-swap-curve-bootstrap-ois": [
+  "template-debug-family"
+ ],
+ "t1-yield-curve-bond-immunization": [
+  "bond-analytics-immunization",
+  "yield-curve-pca"
+ ],
+ "t1-yield-curve-bootstrap-immunization": [
+  "bond-analytics-immunization"
+ ],
+ "t1-yield-curve-pca-dynamics": [
+  "bond-analytics-immunization",
+  "yield-curve-pca"
+ ]
+}
