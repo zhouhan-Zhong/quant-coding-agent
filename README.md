@@ -112,6 +112,17 @@ flowchart LR
    offline conformance sweep over all public tasks, and packages the signed submission. More than 200 unit tests
    and a mock model server guard every release.
 
+### The loop as code: `devloop/`
+
+During the competition, steps 2–4 were run semi-manually: an LLM assistant read the logs and the checkers, wrote
+lesson cards and folded them into the playbooks, following the guides now in `devloop/guides/`. After the competition
+the procedure was packaged as code. `python -m devloop round` evaluates the agent, attributes every failure (rules
+first, then a teacher model), writes lesson cards, folds them into a candidate memory library through leakage and
+format guards, verifies it and A/B-tests it held out: a task never sees a document derived from its own lesson. A
+candidate is kept only if it beats the baseline by more than the run-to-run noise. Recurring mechanical failures are
+reported with ready-to-run flag ablations; agent code is never edited automatically. See
+[`devloop/README.md`](devloop/README.md).
+
 ## Repository layout
 
 | Path | What it is |
@@ -121,6 +132,7 @@ flowchart LR
 | `agent/selfcheck.py` | output-contract parsing and checks |
 | `Dockerfile`, `Dockerfile.lite` | the competition image, and a variant without the memory library |
 | `eval/` | offline evaluation with a self-hosted model (vLLM) and the official checkers |
+| `devloop/` | the outer loop as code: evaluation rounds, failure attribution, lessons, guarded folding, held-out A/B |
 | `tests/` | unit tests and a mock model server for end-to-end runs |
 | `scripts/` | image build, anonymous-pull check, submission descriptor and packaging helpers |
 | `.github/workflows/` | CI: image build and push, pull check, evaluation self-test |

@@ -4,6 +4,7 @@ submission*.json
 submission*.zip
 # local evaluation outputs and caches
 results-*/
+devloop-work/
 __pycache__/
 *.pyc
 .pytest_cache/
